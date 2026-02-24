@@ -1,18 +1,19 @@
 <template>
-  <div class="viewport-layout" :class="`spacing-${spacing}`">
-    <div v-if="loading && (!items || items.length === 0)" class="viewport-loading">
+  <div class="vp-root" :class="`vp-spacing-${spacing}`">
+    <!-- Empty / Loading states -->
+    <div v-if="loading && (!items || items.length === 0)" class="vp-empty">
       Loading...
     </div>
-
-    <div v-else-if="!items || items.length === 0" class="viewport-empty">
+    <div v-else-if="!items || items.length === 0" class="vp-empty">
       No items to display
     </div>
 
-    <div v-else class="viewport-table-wrap">
-      <table class="viewport-table">
+    <!-- Table -->
+    <div v-else class="vp-scroll">
+      <table class="vp-table">
         <thead>
           <tr>
-            <th class="checkbox-col">
+            <th class="vp-th vp-col-check">
               <input
                 type="checkbox"
                 :checked="allSelected"
@@ -20,15 +21,16 @@
                 @change="selectAll"
               />
             </th>
+            <th class="vp-th vp-col-open">&nbsp;</th>
             <th
               v-for="col in visibleFields"
               :key="col.field"
-              class="header-cell"
+              class="vp-th"
               @click="toggleSort(col.field)"
             >
-              <span class="header-label">{{ col.name || col.field }}</span>
-              <span v-if="sortField === col.field" class="sort-indicator">
-                {{ sortDir === 'asc' ? '▲' : '▼' }}
+              {{ col.name || col.field }}
+              <span v-if="sortField === col.field" class="vp-sort">
+                {{ sortDir === 'asc' ? '\u25B2' : '\u25BC' }}
               </span>
             </th>
           </tr>
@@ -37,14 +39,19 @@
           <tr
             v-for="item in items"
             :key="item[pkField]"
-            :class="{ 'is-selected': isSelected(item[pkField]) }"
+            :class="{ 'vp-row-sel': isSelected(item[pkField]) }"
           >
-            <td class="checkbox-col">
+            <td class="vp-td vp-col-check">
               <input
                 type="checkbox"
                 :checked="isSelected(item[pkField])"
                 @change="toggleSelection(item[pkField])"
               />
+            </td>
+            <td class="vp-td vp-col-open">
+              <button class="vp-open-btn" title="Open details" @click="openDrawer(item)">
+                &#x279C;
+              </button>
             </td>
             <EditableCell
               v-for="col in visibleFields"
@@ -62,18 +69,28 @@
       </table>
     </div>
 
-    <div class="viewport-footer" v-if="items && items.length > 0">
-      <div class="pagination">
-        <button class="page-btn" :disabled="page <= 1" @click="page = page - 1">← Prev</button>
-        <span class="page-info">Page {{ page }} of {{ totalPages || 1 }}</span>
-        <button class="page-btn" :disabled="page >= (totalPages || 1)" @click="page = page + 1">Next →</button>
+    <!-- Pagination -->
+    <div class="vp-footer" v-if="items && items.length > 0">
+      <div class="vp-pager">
+        <button class="vp-pg-btn" :disabled="page <= 1" @click="page = page - 1">&larr; Prev</button>
+        <span class="vp-pg-info">Page {{ page }} / {{ totalPages || 1 }}</span>
+        <button class="vp-pg-btn" :disabled="page >= (totalPages || 1)" @click="page = page + 1">Next &rarr;</button>
       </div>
-      <div class="page-size">
-        <select :value="limit" @change="limit = Number(($event.target as HTMLSelectElement).value)">
-          <option v-for="size in [10, 25, 50, 100]" :key="size" :value="size">{{ size }} / page</option>
-        </select>
-      </div>
+      <select class="vp-pg-size" :value="limit" @change="limit = Number(($event.target as HTMLSelectElement).value)">
+        <option v-for="s in [10, 25, 50, 100]" :key="s" :value="s">{{ s }} / page</option>
+      </select>
     </div>
+
+    <!-- Detail Drawer -->
+    <DetailDrawer
+      :active="drawerOpen"
+      :collection="collection"
+      :item="drawerItem"
+      :fields="allFields"
+      :primary-key-field="pkField"
+      @close="drawerOpen = false"
+      @saved="onDrawerSaved"
+    />
   </div>
 </template>
 
@@ -81,6 +98,7 @@
 import { computed, ref } from 'vue';
 import { useApi } from '@directus/extensions-sdk';
 import EditableCell from './editable-cell.vue';
+import DetailDrawer from './detail-drawer.vue';
 
 const props = defineProps<{
   collection: string;
@@ -101,6 +119,7 @@ const props = defineProps<{
   selection: (string | number)[];
   pendingEdits: Map<string | number, Record<string, any>>;
   savingKeys: Set<string | number>;
+  refresh: () => void;
 }>();
 
 const emit = defineEmits<{
@@ -113,16 +132,20 @@ const emit = defineEmits<{
 const directusApi = useApi();
 
 const pkField = computed(() => props.primaryKeyField?.field || 'id');
-
 const readonlyTypes = ['alias', 'json', 'o2m', 'm2m', 'm2a'];
 
 const visibleFields = computed(() => {
   if (!props.fieldsInfo) return [];
-  return props.fieldsInfo.filter((f: any) =>
-    !f.meta?.hidden && !readonlyTypes.includes(f.type) || f.field === pkField.value
-  ).filter((f: any) =>
-    props.fields.includes('*') || props.fields.includes(f.field)
-  );
+  return props.fieldsInfo.filter((f: any) => {
+    if (f.meta?.hidden) return false;
+    if (readonlyTypes.includes(f.type) && f.field !== pkField.value) return false;
+    return props.fields.includes('*') || props.fields.includes(f.field);
+  });
+});
+
+const allFields = computed(() => {
+  if (!props.fieldsInfo) return [];
+  return props.fieldsInfo.filter((f: any) => !f.meta?.hidden);
 });
 
 const sortField = computed(() => {
@@ -146,6 +169,7 @@ const limit = computed({
   set: (val) => emit('update:limit', val),
 });
 
+// Selection
 const allSelected = computed(() => {
   if (!props.items || props.items.length === 0) return false;
   return props.items.every((item: any) => props.selection?.includes(item[pkField.value]));
@@ -189,6 +213,7 @@ function toggleSort(field: string) {
   }
 }
 
+// Cell values
 function getCellValue(item: any, field: string) {
   const pk = item[pkField.value];
   const pending = props.pendingEdits.get(pk);
@@ -208,7 +233,7 @@ function isCellDirty(pk: string | number, field: string) {
   return pending ? field in pending : false;
 }
 
-// Debounce timer
+// Inline edit & auto-save
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
 function onCellEdit(pk: string | number, payload: { field: string; value: any }) {
@@ -224,7 +249,6 @@ function onCellEdit(pk: string | number, payload: { field: string; value: any })
 
 async function flushEdits() {
   if (!directusApi || props.pendingEdits.size === 0) return;
-
   const entries = Array.from(props.pendingEdits.entries());
   for (const [pk, edits] of entries) {
     props.savingKeys.add(pk);
@@ -232,173 +256,207 @@ async function flushEdits() {
       await directusApi.patch(`/items/${props.collection}/${pk}`, edits);
       props.pendingEdits.delete(pk);
     } catch (err) {
-      console.error(`[viewport] Failed to save item ${pk}:`, err);
+      console.error(`[viewport] save failed for ${pk}:`, err);
     } finally {
       props.savingKeys.delete(pk);
     }
   }
 }
 
-// Expose flushEdits for manual save from actions
+// Detail drawer
+const drawerOpen = ref(false);
+const drawerItem = ref<Record<string, any> | null>(null);
+
+function openDrawer(item: Record<string, any>) {
+  drawerItem.value = { ...item };
+  drawerOpen.value = true;
+}
+
+function onDrawerSaved() {
+  props.refresh();
+}
+
 defineExpose({ flushEdits });
 </script>
 
 <style scoped>
-.viewport-layout {
+.vp-root {
   display: flex;
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+  color: var(--theme--foreground);
   font-size: 14px;
-  color: var(--theme--foreground, #333);
 }
 
-.viewport-loading,
-.viewport-empty {
+.vp-empty {
   display: flex;
   align-items: center;
   justify-content: center;
   height: 200px;
-  color: var(--theme--foreground-subdued, #999);
-  font-size: 16px;
+  color: var(--theme--foreground-subdued);
 }
 
-.viewport-table-wrap {
+/* ── Scrollable table area ── */
+.vp-scroll {
   flex: 1;
   overflow: auto;
 }
 
-.viewport-table {
+.vp-table {
   width: 100%;
   border-collapse: collapse;
-  table-layout: auto;
-  color: var(--theme--foreground, #171717);
+  color: inherit;
 }
 
-.viewport-table thead {
+/* ── Header ── */
+.vp-th {
   position: sticky;
   top: 0;
-  z-index: 1;
-}
-
-.viewport-table th {
-  background: var(--theme--background-accent, #f5f5f5);
-  padding: 0 8px;
+  z-index: 2;
+  background: var(--theme--background-accent);
+  padding: 0 12px;
   text-align: left;
   font-weight: 600;
   font-size: 12px;
   text-transform: uppercase;
-  color: var(--theme--foreground-subdued, #999);
-  border-bottom: 2px solid var(--theme--border-color, #e0e0e0);
-  border-right: 1px solid var(--theme--border-color, #e0e0e0);
-  user-select: none;
+  color: var(--theme--foreground-subdued);
+  border-bottom: 2px solid var(--theme--border-color);
+  border-right: 1px solid var(--theme--border-color);
   white-space: nowrap;
   cursor: pointer;
+  user-select: none;
 }
 
-.header-cell:hover {
-  color: var(--theme--foreground, #333);
+.vp-th:hover {
+  color: var(--theme--foreground);
 }
 
-.header-label {
-  margin-right: 4px;
-}
-
-.sort-indicator {
+.vp-sort {
   font-size: 10px;
+  margin-left: 2px;
 }
 
-.checkbox-col {
+/* ── Fixed-width columns ── */
+.vp-col-check {
   width: 40px;
   text-align: center;
-  padding: 0 4px;
-  border-right: 1px solid var(--theme--border-color, #e0e0e0);
-  border-bottom: 1px solid var(--theme--border-color, #e0e0e0);
+  padding: 0;
+  cursor: default;
 }
 
-thead .checkbox-col {
-  background: var(--theme--background-accent, #f5f5f5);
-  border-bottom: 2px solid var(--theme--border-color, #e0e0e0);
+.vp-col-open {
+  width: 36px;
+  text-align: center;
+  padding: 0;
+  cursor: default;
 }
 
-.viewport-table tbody tr:hover {
-  background: var(--theme--background-accent, rgba(0, 0, 0, 0.02));
+/* ── Body cells ── */
+.vp-td {
+  border-right: 1px solid var(--theme--border-color);
+  border-bottom: 1px solid var(--theme--border-color);
+  vertical-align: middle;
+  color: inherit;
 }
 
-.viewport-table tbody tr.is-selected {
-  background: color-mix(in srgb, var(--theme--primary, #6644ff) 8%, transparent);
+/* ── Row hover & selection ── */
+.vp-table tbody tr:hover {
+  background: var(--theme--background-accent);
 }
 
-/* Spacing modes */
-.spacing-compact .viewport-table th,
-.spacing-compact .viewport-table td,
-.spacing-compact .checkbox-col {
+.vp-row-sel {
+  background: color-mix(in srgb, var(--theme--primary) 8%, transparent);
+}
+
+/* ── Open-detail button ── */
+.vp-open-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--theme--border-color);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--theme--foreground-subdued);
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.15s;
+}
+
+.vp-open-btn:hover {
+  background: var(--theme--primary);
+  color: #fff;
+  border-color: var(--theme--primary);
+}
+
+/* ── Spacing modes (applied to th, td, and child component root <td>) ── */
+.vp-spacing-compact .vp-table :deep(th),
+.vp-spacing-compact .vp-table :deep(td) {
   height: 32px;
   line-height: 32px;
 }
 
-.spacing-cozy .viewport-table th,
-.spacing-cozy .viewport-table td,
-.spacing-cozy .checkbox-col {
+.vp-spacing-cozy .vp-table :deep(th),
+.vp-spacing-cozy .vp-table :deep(td) {
   height: 48px;
   line-height: 48px;
 }
 
-.spacing-comfortable .viewport-table th,
-.spacing-comfortable .viewport-table td,
-.spacing-comfortable .checkbox-col {
+.vp-spacing-comfortable .vp-table :deep(th),
+.vp-spacing-comfortable .vp-table :deep(td) {
   height: 64px;
   line-height: 64px;
 }
 
-/* Footer */
-.viewport-footer {
+/* ── Pagination footer ── */
+.vp-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  border-top: 1px solid var(--theme--border-color, #e0e0e0);
-  background: var(--theme--background, #fff);
+  border-top: 1px solid var(--theme--border-color);
+  background: var(--theme--background);
   flex-shrink: 0;
 }
 
-.pagination {
+.vp-pager {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.page-btn {
+.vp-pg-btn {
   padding: 4px 10px;
-  border: 1px solid var(--theme--border-color, #e0e0e0);
+  border: 1px solid var(--theme--border-color);
   border-radius: var(--theme--border-radius, 4px);
-  background: var(--theme--background, #fff);
-  color: var(--theme--foreground, #333);
+  background: var(--theme--background);
+  color: var(--theme--foreground);
   cursor: pointer;
   font-size: 13px;
-  transition: all 0.15s;
 }
 
-.page-btn:hover:not(:disabled) {
-  background: var(--theme--background-accent, #f5f5f5);
+.vp-pg-btn:hover:not(:disabled) {
+  background: var(--theme--background-accent);
 }
 
-.page-btn:disabled {
-  opacity: 0.4;
+.vp-pg-btn:disabled {
+  opacity: 0.35;
   cursor: not-allowed;
 }
 
-.page-info {
+.vp-pg-info {
   font-size: 13px;
-  color: var(--theme--foreground-subdued, #999);
+  color: var(--theme--foreground-subdued);
 }
 
-.page-size select {
+.vp-pg-size {
   padding: 4px 8px;
-  border: 1px solid var(--theme--border-color, #e0e0e0);
+  border: 1px solid var(--theme--border-color);
   border-radius: var(--theme--border-radius, 4px);
-  background: var(--theme--background, #fff);
-  color: var(--theme--foreground, #333);
+  background: var(--theme--background);
+  color: var(--theme--foreground);
   font-size: 13px;
 }
 </style>
