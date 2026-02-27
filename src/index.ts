@@ -69,16 +69,14 @@ export default defineLayout<LayoutOptions, LayoutQuery>({
       }
     }, { immediate: true });
 
-    const fetchQuery = computed(() => ({
-      fields: fields.value,
-      limit: limit.value,
-      sort: sort.value.length > 0 ? sort.value : undefined,
-      page: page.value,
-      search: search.value,
-      filter: filter.value,
-    }));
-
-    const { items, totalPages, itemCount, totalCount, loading, getItems } = useItems(collection, fetchQuery);
+    const { items, totalPages, itemCount, totalCount, loading, getItems } = useItems(collection, {
+      fields,
+      limit,
+      sort,
+      page,
+      search,
+      filter,
+    });
 
     function toggleSort(field: string) {
       const current = sort.value;
