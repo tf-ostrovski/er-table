@@ -8,11 +8,23 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      - name: Write SSH key
+        run: |
+          install -m 600 /dev/null ~/.ssh_key
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh_key
+
       - name: Trigger full deploy
-        uses: appleboy/ssh-action@v1
+        uses: nick-fields/retry@v3
         with:
-          host: 147.93.59.125
-          username: root
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          timeout: 120s
-          script: /opt/sys/scripts/deploy.sh
+          timeout_minutes: 5
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: |
+            ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 \
+              -i ~/.ssh_key \
+              root@${{ secrets.VPS_HOST }} \
+              /opt/sys/scripts/deploy.sh
+
+      - name: Cleanup
+        if: always()
+        run: rm -f ~/.ssh_key
