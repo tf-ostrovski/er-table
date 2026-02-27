@@ -8,33 +8,10 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build extension
-        run: npm run build
-
-      - name: Copy to VPS
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: 147.93.59.125
-          username: root
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          source: "dist/index.js,package.json"
-          target: /var/lib/docker/volumes/supabase_directus-extensions/_data/directus-viewport/
-
-      - name: Restart Directus
+      - name: Trigger full deploy
         uses: appleboy/ssh-action@v1
         with:
           host: 147.93.59.125
           username: root
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          script: docker restart supabase-directus
+          script: /opt/sys/scripts/deploy.sh
