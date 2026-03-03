@@ -1,35 +1,43 @@
 <template>
-  <div class="vp-root" :class="`vp-spacing-${spacing}`">
+  <div class="viewport" :class="`viewport--${spacing}`">
     <!-- Empty / Loading states -->
-    <div v-if="loading && (!items || items.length === 0)" class="vp-empty">
-      Loading...
+    <div v-if="loading && (!items || items.length === 0)" class="viewport__empty">
+      <svg class="viewport__empty-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M6 2l.01 6L10 12l-3.99 4.01L6 22h12v-6l-4-4 4-3.99V2H6zm10 14.5V20H8v-3.5l4-4 4 4z"/></svg>
+      <div class="viewport__empty-text">Loading...</div>
     </div>
-    <div v-else-if="!items || items.length === 0" class="vp-empty">
-      No items to display
+    <div v-else-if="!items || items.length === 0" class="viewport__empty">
+      <svg class="viewport__empty-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0016 9.5 6.5 6.5 0 009.5 3S3 3 3 9.5 9.5 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+      <div class="viewport__empty-text">No items to display</div>
     </div>
 
     <!-- Table -->
-    <div v-else class="vp-scroll">
-      <table class="vp-table">
+    <div v-else class="viewport__scroll">
+      <table class="viewport__table">
         <thead>
           <tr>
-            <th class="vp-th vp-col-check">
-              <input
-                type="checkbox"
-                :checked="allSelected"
-                :indeterminate="someSelected && !allSelected"
-                @change="selectAll"
-              />
+            <th class="viewport__th viewport__th--check">
+              <label class="viewport__checkbox">
+                <input
+                  type="checkbox"
+                  :checked="allSelected"
+                  :indeterminate="someSelected && !allSelected"
+                  @change="selectAll"
+                />
+                <span class="viewport__checkbox-mark"></span>
+              </label>
             </th>
-            <th class="vp-th vp-col-open">&nbsp;</th>
+            <th class="viewport__th viewport__th--open"></th>
             <th
               v-for="col in visibleFields"
               :key="col.field"
-              class="vp-th"
+              class="viewport__th"
+              :class="{
+                'viewport__th--sorted': sortField === col.field,
+              }"
               @click="toggleSort(col.field)"
             >
-              {{ col.name || col.field }}
-              <span v-if="sortField === col.field" class="vp-sort">
+              <span class="viewport__th-label">{{ col.name || col.field }}</span>
+              <span v-if="sortField === col.field" class="viewport__th-sort">
                 {{ sortDir === 'asc' ? '\u25B2' : '\u25BC' }}
               </span>
             </th>
@@ -39,18 +47,22 @@
           <tr
             v-for="item in items"
             :key="item[pkField]"
-            :class="{ 'vp-row-sel': isSelected(item[pkField]) }"
+            class="viewport__row"
+            :class="{ 'viewport__row--selected': isSelected(item[pkField]) }"
           >
-            <td class="vp-td vp-col-check">
-              <input
-                type="checkbox"
-                :checked="isSelected(item[pkField])"
-                @change="toggleSelection(item[pkField])"
-              />
+            <td class="viewport__td viewport__td--check">
+              <label class="viewport__checkbox">
+                <input
+                  type="checkbox"
+                  :checked="isSelected(item[pkField])"
+                  @change="toggleSelection(item[pkField])"
+                />
+                <span class="viewport__checkbox-mark"></span>
+              </label>
             </td>
-            <td class="vp-td vp-col-open">
-              <button class="vp-open-btn" title="Open details" @click="openDrawer(item)">
-                &#x279C;
+            <td class="viewport__td viewport__td--open">
+              <button class="viewport__open-btn" title="Open details" @click="openDrawer(item)">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 19H5V5h7V3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
               </button>
             </td>
             <EditableCell
@@ -70,13 +82,25 @@
     </div>
 
     <!-- Pagination -->
-    <div class="vp-footer" v-if="items && items.length > 0">
-      <div class="vp-pager">
-        <button class="vp-pg-btn" :disabled="page <= 1" @click="page = page - 1">&larr; Prev</button>
-        <span class="vp-pg-info">Page {{ page }} / {{ totalPages || 1 }}</span>
-        <button class="vp-pg-btn" :disabled="page >= (totalPages || 1)" @click="page = page + 1">Next &rarr;</button>
+    <div class="viewport__footer" v-if="items && items.length > 0">
+      <div class="viewport__pager">
+        <button
+          class="viewport__pager-btn"
+          :disabled="page <= 1"
+          @click="page = page - 1"
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+        </button>
+        <span class="viewport__pager-info">{{ page }} / {{ totalPages || 1 }}</span>
+        <button
+          class="viewport__pager-btn"
+          :disabled="page >= (totalPages || 1)"
+          @click="page = page + 1"
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </button>
       </div>
-      <select class="vp-pg-size" :value="limit" @change="limit = Number(($event.target as HTMLSelectElement).value)">
+      <select class="viewport__page-size" :value="limit" @change="limit = Number(($event.target as HTMLSelectElement).value)">
         <option v-for="s in [10, 25, 50, 100]" :key="s" :value="s">{{ s }} / page</option>
       </select>
     </div>
@@ -280,37 +304,59 @@ defineExpose({ flushEdits });
 </script>
 
 <style scoped>
-.vp-root {
+/* ═══════════════════════════════════════════════════════
+   Viewport Layout — BEM
+   Block: .viewport
+   ═══════════════════════════════════════════════════════ */
+
+.viewport {
   display: flex;
   flex-direction: column;
   height: 100%;
   overflow: hidden;
   color: var(--theme--foreground);
+  font-family: var(--theme--fonts--sans--font-family, system-ui, sans-serif);
   font-size: 14px;
 }
 
-.vp-empty {
+/* ── Empty / loading ─────────────────────────────── */
+
+.viewport__empty {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   height: 200px;
+  gap: 8px;
   color: var(--theme--foreground-subdued);
 }
 
-/* ── Scrollable table area ── */
-.vp-scroll {
+.viewport__empty-icon {
+  width: 48px;
+  height: 48px;
+  opacity: 0.35;
+}
+
+.viewport__empty-text {
+  font-size: 14px;
+}
+
+/* ── Scrollable area ─────────────────────────────── */
+
+.viewport__scroll {
   flex: 1;
   overflow: auto;
 }
 
-.vp-table {
+.viewport__table {
   width: 100%;
   border-collapse: collapse;
   color: inherit;
 }
 
-/* ── Header ── */
-.vp-th {
+/* ── Header cells ────────────────────────────────── */
+
+.viewport__th {
   position: sticky;
   top: 0;
   z-index: 2;
@@ -320,143 +366,257 @@ defineExpose({ flushEdits });
   font-weight: 600;
   font-size: 12px;
   text-transform: uppercase;
+  letter-spacing: 0.02em;
   color: var(--theme--foreground-subdued);
   border-bottom: 2px solid var(--theme--border-color);
-  border-right: 1px solid var(--theme--border-color);
   white-space: nowrap;
   cursor: pointer;
   user-select: none;
+  transition: color 0.15s;
 }
 
-.vp-th:hover {
+.viewport__th:hover {
   color: var(--theme--foreground);
 }
 
-.vp-sort {
-  font-size: 10px;
-  margin-left: 2px;
+.viewport__th--sorted {
+  color: var(--theme--primary);
 }
 
-/* ── Fixed-width columns ── */
-.vp-col-check {
-  width: 40px;
+.viewport__th--check,
+.viewport__th--open {
+  cursor: default;
+  width: 44px;
   text-align: center;
   padding: 0;
-  cursor: default;
 }
 
-.vp-col-open {
-  width: 36px;
-  text-align: center;
-  padding: 0;
-  cursor: default;
+.viewport__th-label {
+  vertical-align: middle;
 }
 
-/* ── Body cells ── */
-.vp-td {
-  border-right: 1px solid var(--theme--border-color);
+.viewport__th-sort {
+  font-size: 9px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+/* ── Body rows ───────────────────────────────────── */
+
+.viewport__row {
+  transition: background-color 0.1s;
+}
+
+.viewport__row:hover {
+  background: var(--theme--background-accent);
+}
+
+.viewport__row--selected {
+  background: color-mix(in srgb, var(--theme--primary) 8%, transparent);
+}
+
+.viewport__row--selected:hover {
+  background: color-mix(in srgb, var(--theme--primary) 12%, transparent);
+}
+
+/* ── Body cells ──────────────────────────────────── */
+
+.viewport__td {
   border-bottom: 1px solid var(--theme--border-color);
   vertical-align: middle;
   color: inherit;
 }
 
-/* ── Row hover & selection ── */
-.vp-table tbody tr:hover {
-  background: var(--theme--background-accent);
+.viewport__td--check,
+.viewport__td--open {
+  width: 44px;
+  text-align: center;
+  padding: 0;
 }
 
-.vp-row-sel {
-  background: color-mix(in srgb, var(--theme--primary) 8%, transparent);
+/* ── Custom checkbox ─────────────────────────────── */
+
+.viewport__checkbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  width: 20px;
+  height: 20px;
 }
 
-/* ── Open-detail button ── */
-.vp-open-btn {
+.viewport__checkbox input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.viewport__checkbox-mark {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--theme--border-color);
+  border-radius: 4px;
+  transition: all 0.15s;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.viewport__checkbox input:checked + .viewport__checkbox-mark {
+  background: var(--theme--primary);
+  border-color: var(--theme--primary);
+}
+
+.viewport__checkbox input:checked + .viewport__checkbox-mark::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 5px;
+  width: 5px;
+  height: 9px;
+  border: solid var(--theme--primary-foreground, #fff);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.viewport__checkbox input:indeterminate + .viewport__checkbox-mark {
+  background: var(--theme--primary);
+  border-color: var(--theme--primary);
+}
+
+.viewport__checkbox input:indeterminate + .viewport__checkbox-mark::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  left: 3px;
+  width: 8px;
+  height: 0;
+  border: solid var(--theme--primary-foreground, #fff);
+  border-width: 0 0 2px 0;
+}
+
+.viewport__checkbox:hover .viewport__checkbox-mark {
+  border-color: var(--theme--primary);
+}
+
+/* ── Open-detail button ──────────────────────────── */
+
+.viewport__open-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 28px;
   height: 28px;
-  border: 1px solid var(--theme--border-color);
-  border-radius: 4px;
+  border: none;
+  border-radius: 6px;
   background: transparent;
   color: var(--theme--foreground-subdued);
   cursor: pointer;
-  font-size: 14px;
   transition: all 0.15s;
+  opacity: 0;
 }
 
-.vp-open-btn:hover {
+.viewport__row:hover .viewport__open-btn {
+  opacity: 1;
+}
+
+.viewport__open-btn:hover {
   background: var(--theme--primary);
-  color: #fff;
-  border-color: var(--theme--primary);
+  color: var(--theme--primary-foreground, #fff);
 }
 
-/* ── Spacing modes (applied to th, td, and child component root <td>) ── */
-.vp-spacing-compact .vp-table :deep(th),
-.vp-spacing-compact .vp-table :deep(td) {
-  height: 32px;
-  line-height: 32px;
+/* ── Spacing variants ────────────────────────────── */
+
+.viewport--compact .viewport__table :deep(th),
+.viewport--compact .viewport__table :deep(td) {
+  height: 36px;
+  line-height: 36px;
 }
 
-.vp-spacing-cozy .vp-table :deep(th),
-.vp-spacing-cozy .vp-table :deep(td) {
+.viewport--cozy .viewport__table :deep(th),
+.viewport--cozy .viewport__table :deep(td) {
   height: 48px;
   line-height: 48px;
 }
 
-.vp-spacing-comfortable .vp-table :deep(th),
-.vp-spacing-comfortable .vp-table :deep(td) {
-  height: 64px;
-  line-height: 64px;
+.viewport--comfortable .viewport__table :deep(th),
+.viewport--comfortable .viewport__table :deep(td) {
+  height: 60px;
+  line-height: 60px;
 }
 
-/* ── Pagination footer ── */
-.vp-footer {
+/* ── Pagination footer ───────────────────────────── */
+
+.viewport__footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
-  border-top: 1px solid var(--theme--border-color);
+  padding: 8px 16px;
+  border-top: 2px solid var(--theme--border-color);
   background: var(--theme--background);
   flex-shrink: 0;
 }
 
-.vp-pager {
+.viewport__pager {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
 }
 
-.vp-pg-btn {
-  padding: 4px 10px;
+.viewport__pager-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
   border: 1px solid var(--theme--border-color);
-  border-radius: var(--theme--border-radius, 4px);
+  border-radius: 6px;
   background: var(--theme--background);
   color: var(--theme--foreground);
   cursor: pointer;
-  font-size: 13px;
+  transition: all 0.15s;
 }
 
-.vp-pg-btn:hover:not(:disabled) {
+.viewport__pager-btn:hover:not(:disabled) {
   background: var(--theme--background-accent);
+  border-color: var(--theme--primary);
+  color: var(--theme--primary);
 }
 
-.vp-pg-btn:disabled {
-  opacity: 0.35;
+.viewport__pager-btn:disabled {
+  opacity: 0.3;
   cursor: not-allowed;
 }
 
-.vp-pg-info {
+.viewport__pager-info {
   font-size: 13px;
   color: var(--theme--foreground-subdued);
+  padding: 0 8px;
+  min-width: 60px;
+  text-align: center;
 }
 
-.vp-pg-size {
-  padding: 4px 8px;
+.viewport__page-size {
+  padding: 6px 10px;
   border: 1px solid var(--theme--border-color);
-  border-radius: var(--theme--border-radius, 4px);
+  border-radius: 6px;
   background: var(--theme--background);
   color: var(--theme--foreground);
   font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 28px;
+}
+
+.viewport__page-size:hover,
+.viewport__page-size:focus {
+  border-color: var(--theme--primary);
+  outline: none;
 }
 </style>

@@ -1,35 +1,39 @@
 <template>
   <Teleport to="body">
-    <transition name="vp-drawer">
-      <div v-if="active" class="vp-drawer-overlay" @click.self="$emit('close')">
-        <aside class="vp-drawer">
-          <header class="vp-drawer-header">
-            <span class="vp-drawer-title">{{ title }}</span>
-            <button class="vp-drawer-close" @click="$emit('close')">&#x2715;</button>
+    <transition name="drawer">
+      <div v-if="active" class="drawer-overlay" @click.self="$emit('close')">
+        <aside class="drawer">
+          <header class="drawer__header">
+            <span class="drawer__title">{{ title }}</span>
+            <button class="drawer__close" @click="$emit('close')">&times;</button>
           </header>
 
-          <div class="vp-drawer-body">
+          <div class="drawer__body">
             <div
               v-for="col in fields"
               :key="col.field"
-              class="vp-drawer-field"
+              class="drawer__field"
             >
-              <label class="vp-drawer-label">{{ col.name || col.field }}</label>
-              <div class="vp-drawer-value">
+              <label class="drawer__label">{{ col.name || col.field }}</label>
+              <div class="drawer__value">
                 <input
                   v-if="isEditable(col)"
-                  class="vp-drawer-input"
+                  class="drawer__input"
                   :type="inputType(col)"
                   :value="getVal(col.field)"
                   @input="onInput(col, ($event.target as HTMLInputElement).value)"
                 />
-                <span v-else class="vp-drawer-readonly">{{ getDisplay(col.field) }}</span>
+                <span v-else class="drawer__readonly">{{ getDisplay(col.field) }}</span>
               </div>
             </div>
           </div>
 
-          <footer class="vp-drawer-footer">
-            <button class="vp-drawer-save" @click="save">Save</button>
+          <footer class="drawer__footer">
+            <button class="drawer__cancel" @click="$emit('close')">Cancel</button>
+            <button class="drawer__save" @click="save">
+              <span v-if="saving" class="drawer__save-spinner"></span>
+              <span v-else>Save</span>
+            </button>
           </footer>
         </aside>
       </div>
@@ -130,16 +134,22 @@ async function save() {
 </script>
 
 <style scoped>
-.vp-drawer-overlay {
+/* ═══════════════════════════════════════════════════════
+   Detail Drawer — BEM
+   Block: .drawer
+   ═══════════════════════════════════════════════════════ */
+
+.drawer-overlay {
   position: fixed;
   inset: 0;
   z-index: 500;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   justify-content: flex-end;
+  backdrop-filter: blur(2px);
 }
 
-.vp-drawer {
+.drawer {
   width: 480px;
   max-width: 90vw;
   height: 100%;
@@ -147,123 +157,171 @@ async function save() {
   color: var(--theme--foreground, #171717);
   display: flex;
   flex-direction: column;
-  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.2);
 }
 
-.vp-drawer-header {
+.drawer__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
+  padding: 20px 24px;
   border-bottom: 1px solid var(--theme--border-color, #e2e2e2);
   flex-shrink: 0;
 }
 
-.vp-drawer-title {
+.drawer__title {
   font-size: 18px;
   font-weight: 700;
 }
 
-.vp-drawer-close {
+.drawer__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
   background: none;
   border: none;
-  font-size: 18px;
+  border-radius: 8px;
   cursor: pointer;
   color: var(--theme--foreground-subdued, #999);
-  padding: 4px 8px;
-  border-radius: 4px;
+  font-size: 24px;
+  line-height: 1;
+  transition: all 0.15s;
 }
 
-.vp-drawer-close:hover {
+.drawer__close:hover {
   background: var(--theme--background-accent, #f0f0f0);
   color: var(--theme--foreground, #171717);
 }
 
-.vp-drawer-body {
+.drawer__body {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
+  padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
 }
 
-.vp-drawer-field {
+.drawer__field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
-.vp-drawer-label {
+.drawer__label {
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
+  letter-spacing: 0.02em;
   color: var(--theme--foreground-subdued, #999);
 }
 
-.vp-drawer-input {
+.drawer__input {
   width: 100%;
-  padding: 8px 12px;
+  padding: 10px 12px;
   border: 1px solid var(--theme--border-color, #e2e2e2);
-  border-radius: var(--theme--border-radius, 6px);
+  border-radius: 6px;
   background: var(--theme--background, #fff);
   color: var(--theme--foreground, #171717);
   font-size: 14px;
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-.vp-drawer-input:focus {
+.drawer__input:focus {
   border-color: var(--theme--primary, #6644ff);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--theme--primary, #6644ff) 20%, transparent);
 }
 
-.vp-drawer-readonly {
+.drawer__readonly {
   font-size: 14px;
-  padding: 8px 0;
+  padding: 10px 0;
   color: var(--theme--foreground-subdued, #999);
   word-break: break-all;
 }
 
-.vp-drawer-footer {
-  padding: 16px 20px;
+.drawer__footer {
+  display: flex;
+  gap: 12px;
+  padding: 20px 24px;
   border-top: 1px solid var(--theme--border-color, #e2e2e2);
   flex-shrink: 0;
 }
 
-.vp-drawer-save {
-  width: 100%;
+.drawer__cancel {
+  flex: 1;
+  padding: 10px;
+  background: var(--theme--background);
+  color: var(--theme--foreground);
+  border: 1px solid var(--theme--border-color);
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.drawer__cancel:hover {
+  background: var(--theme--background-accent);
+}
+
+.drawer__save {
+  flex: 2;
   padding: 10px;
   background: var(--theme--primary, #6644ff);
-  color: #fff;
+  color: var(--theme--primary-foreground, #fff);
   border: none;
-  border-radius: var(--theme--border-radius, 6px);
+  border-radius: 6px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   transition: opacity 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.vp-drawer-save:hover {
+.drawer__save:hover {
   opacity: 0.85;
 }
 
-/* Transition */
-.vp-drawer-enter-active,
-.vp-drawer-leave-active {
+.drawer__save-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid transparent;
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: drawer-spin 0.6s linear infinite;
+}
+
+@keyframes drawer-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Transition ──────────────────────────────────── */
+
+.drawer-enter-active,
+.drawer-leave-active {
   transition: opacity 0.2s ease;
 }
-.vp-drawer-enter-active .vp-drawer,
-.vp-drawer-leave-active .vp-drawer {
-  transition: transform 0.25s ease;
+
+.drawer-enter-active .drawer,
+.drawer-leave-active .drawer {
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.vp-drawer-enter-from,
-.vp-drawer-leave-to {
+
+.drawer-enter-from,
+.drawer-leave-to {
   opacity: 0;
 }
-.vp-drawer-enter-from .vp-drawer {
+
+.drawer-enter-from .drawer {
   transform: translateX(100%);
 }
-.vp-drawer-leave-to .vp-drawer {
+
+.drawer-leave-to .drawer {
   transform: translateX(100%);
 }
 </style>

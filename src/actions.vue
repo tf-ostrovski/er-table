@@ -1,11 +1,11 @@
 <template>
-  <div class="viewport-actions">
-    <span class="item-count" v-if="itemCount !== null && totalCount !== null">
+  <div class="actions">
+    <span class="actions__count" v-if="itemCount !== null && totalCount !== null">
       {{ rangeStart }}-{{ rangeEnd }} of {{ totalCount }}
     </span>
     <button
       v-if="!autoSave && hasPending"
-      class="save-btn"
+      class="actions__save-btn"
       @click="$emit('save')"
     >
       Save Changes
@@ -37,21 +37,26 @@ const rangeEnd = computed(() => {
 </script>
 
 <style scoped>
-.viewport-actions {
+/* ═══════════════════════════════════════════════════════
+   Actions Bar — BEM
+   Block: .actions
+   ═══════════════════════════════════════════════════════ */
+
+.actions {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-.item-count {
+.actions__count {
   font-size: 14px;
   color: var(--theme--foreground-subdued, #999);
 }
 
-.save-btn {
-  padding: 4px 12px;
+.actions__save-btn {
+  padding: 6px 16px;
   border: none;
-  border-radius: var(--theme--border-radius, 4px);
+  border-radius: 6px;
   background: var(--theme--primary, #6644ff);
   color: var(--theme--primary-foreground, #fff);
   cursor: pointer;
@@ -60,7 +65,7 @@ const rangeEnd = computed(() => {
   transition: opacity 0.15s;
 }
 
-.save-btn:hover {
+.actions__save-btn:hover {
   opacity: 0.85;
 }
 </style>
