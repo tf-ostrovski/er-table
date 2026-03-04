@@ -1,5 +1,4 @@
 import { ref, watch, onUnmounted, type Ref } from 'vue';
-import { useApi } from '@directus/extensions-sdk';
 
 interface UseSubscriptionOptions {
 	collection: Ref<string>;
@@ -9,7 +8,6 @@ interface UseSubscriptionOptions {
 }
 
 export function useSubscription({ collection, onEvent, enabled, debounceMs = 300 }: UseSubscriptionOptions) {
-	const api = useApi();
 	const connected = ref(false);
 
 	let ws: WebSocket | null = null;
@@ -20,14 +18,6 @@ export function useSubscription({ collection, onEvent, enabled, debounceMs = 300
 
 	const MAX_RECONNECT_DELAY = 30_000;
 	const BASE_RECONNECT_DELAY = 1_000;
-
-	function getToken(): string | null {
-		const header = api.defaults.headers.common['Authorization'];
-		if (typeof header === 'string' && header.startsWith('Bearer ')) {
-			return header.slice(7);
-		}
-		return null;
-	}
 
 	function getWsUrl(): string {
 		const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -41,10 +31,11 @@ export function useSubscription({ collection, onEvent, enabled, debounceMs = 300
 		ws = new WebSocket(getWsUrl());
 
 		ws.onopen = () => {
-			const token = getToken();
-			if (token) {
-				ws?.send(JSON.stringify({ type: 'auth', access_token: token }));
-			}
+			// Directus authenticates WebSocket via session cookie during HTTP upgrade.
+			// No auth handshake message needed — connection is already authenticated.
+			connected.value = true;
+			reconnectAttempts = 0;
+			subscribe();
 		};
 
 		ws.onmessage = (event) => {
@@ -57,12 +48,9 @@ export function useSubscription({ collection, onEvent, enabled, debounceMs = 300
 
 			switch (msg.type) {
 				case 'auth':
-					if (msg.status === 'ok') {
-						connected.value = true;
-						reconnectAttempts = 0;
-						subscribe();
-					} else {
-						handleTokenRefresh();
+					if (msg.status === 'error') {
+						// Token expired — reconnect to re-auth via fresh session cookie
+						ws?.close();
 					}
 					break;
 
@@ -105,18 +93,6 @@ export function useSubscription({ collection, onEvent, enabled, debounceMs = 300
 		debounceTimer = setTimeout(() => {
 			onEvent();
 		}, debounceMs);
-	}
-
-	async function handleTokenRefresh() {
-		try {
-			const response = await api.post('/auth/refresh');
-			const newToken = response.data?.data?.access_token;
-			if (newToken && ws && ws.readyState === WebSocket.OPEN) {
-				ws.send(JSON.stringify({ type: 'auth', access_token: newToken }));
-			}
-		} catch {
-			ws?.close();
-		}
 	}
 
 	function scheduleReconnect() {
