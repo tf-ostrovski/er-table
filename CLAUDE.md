@@ -29,7 +29,8 @@ src/
 │   ├── detail-drawer.vue ← szuflada szczegółów (teleport do body, edycja przez API)
 │   ├── options.vue       ← panel opcji layoutu (spacing, auto-save, delay)
 │   ├── actions.vue       ← pasek akcji (licznik rekordów, przycisk "Save Changes")
-│   └── types.ts          ← LayoutOptions, LayoutQuery
+│   ├── types.ts          ← LayoutOptions, LayoutQuery
+│   └── use-subscription.ts ← composable: Directus real-time subscription
 └── pwa/                  ← HOOK: PWA support
     ├── index.ts          ← defineHook(): embed manifest link + rejestracja SW routes
     ├── manifest.ts       ← generowanie Web App Manifest z ustawień Directus
