@@ -1,4 +1,4 @@
-import { defineLayout, useSync, useCollection, useItems } from '@directus/extensions-sdk';
+import { defineLayout, useSync, useCollection, useItems, useStores } from '@directus/extensions-sdk';
 import { ref, computed, watch, toRefs } from 'vue';
 import { useSubscription } from './use-subscription';
 import LayoutComponent from './layout.vue';
@@ -84,10 +84,16 @@ export default defineLayout<LayoutOptions, LayoutQuery>({
       set: (val) => { layoutOptions.value = { ...layoutOptions.value, liveRefresh: val }; },
     });
 
+    const stores = useStores();
+
     const { connected: wsConnected } = useSubscription({
       collection,
       onEvent: getItems,
       enabled: liveRefresh,
+      getToken: () => {
+        try { return stores.useAuthStore().token; }
+        catch { return null; }
+      },
     });
 
     function toggleSort(field: string) {

@@ -5,9 +5,10 @@ interface UseSubscriptionOptions {
 	onEvent: () => void;
 	enabled: Ref<boolean>;
 	debounceMs?: number;
+	getToken: () => string | null;
 }
 
-export function useSubscription({ collection, onEvent, enabled, debounceMs = 300 }: UseSubscriptionOptions) {
+export function useSubscription({ collection, onEvent, enabled, debounceMs = 300, getToken }: UseSubscriptionOptions) {
 	const connected = ref(false);
 
 	let ws: WebSocket | null = null;
@@ -31,11 +32,9 @@ export function useSubscription({ collection, onEvent, enabled, debounceMs = 300
 		ws = new WebSocket(getWsUrl());
 
 		ws.onopen = () => {
-			// Directus authenticates WebSocket via session cookie during HTTP upgrade.
-			// No auth handshake message needed — connection is already authenticated.
 			connected.value = true;
 			reconnectAttempts = 0;
-			subscribe();
+			// Don't subscribe yet — wait for auth confirmation from server
 		};
 
 		ws.onmessage = (event) => {
@@ -48,8 +47,16 @@ export function useSubscription({ collection, onEvent, enabled, debounceMs = 300
 
 			switch (msg.type) {
 				case 'auth':
-					if (msg.status === 'error') {
-						// Token expired — reconnect to re-auth via fresh session cookie
+					if (msg.status === 'ok') {
+						subscribe();
+					} else if (msg.status === 'required') {
+						const token = getToken();
+						if (token) {
+							ws?.send(JSON.stringify({ type: 'authenticate', access_token: token }));
+						} else {
+							ws?.close();
+						}
+					} else if (msg.status === 'error') {
 						ws?.close();
 					}
 					break;
