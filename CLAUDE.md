@@ -111,5 +111,5 @@ ssh root@147.93.59.125 "docker logs supabase-directus --tail 50"
 
 ## Baza danych
 
-Directus używa schematu `airtable` (nie `public`) — `DB_SEARCH_PATH=airtable,test,extensions`.
-Wszystkie tabele `directus_*` są w schemacie `airtable`.
+Directus używa schematu `directus` (nie `public`) — `DB_SEARCH_PATH=directus,ertable,extensions`.
+Wszystkie tabele `directus_*` są w schemacie `directus`, dane biznesowe w schemacie `ertable`.
