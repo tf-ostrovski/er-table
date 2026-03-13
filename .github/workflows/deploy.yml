@@ -16,15 +16,10 @@ jobs:
 
       - name: Trigger full deploy
         run: |
-          for i in 1 2 3; do
-            ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 \
-              -i ~/.ssh_key \
-              root@${{ secrets.VPS_HOST }} \
-              /opt/sys/scripts/deploy.sh && exit 0
-            echo "Attempt $i failed, retrying in 30s..."
-            sleep 30
-          done
-          exit 1
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 \
+            -i ~/.ssh_key \
+            root@${{ secrets.VPS_HOST }} \
+            /opt/sys/scripts/deploy.sh
 
       - name: Cleanup
         if: always()
